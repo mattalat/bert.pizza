@@ -22,69 +22,14 @@ var loader,
   slices = [];
 
 var options = {
-  numSlices: 5,
+  numSlices: 15,
   ySpinVelocity: 0.02,
   fov: 45,
-  camera: [200, 200, 200]
+  camera: [200, 200, 200],
+  radius: 100,
+  pSize: 5,
+  extrudeSize: 1
 };
-
-/**/
-function init() {
-  // Set up scene and camera
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(
-    options.fov,
-    window.innerWidth / window.innerHeight,
-    1, 1000
-  );
-  camera.position.set(options.camera[0], options.camera[1], options.camera[2]);
-  camera.lookAt(new THREE.Vector3(0, 0, 0));
-  scene.add(camera);
-
-  // lights
-  var lights = new THREE.Group();
-  lights.add(new THREE.PointLight(0xffffff, 0.6));
-  lights.add(new THREE.PointLight(0xffffff, 0.6));
-  lights.add(new THREE.AmbientLight(0x909090)); // soft white light
-
-  lights.children[0].position.set(100, 100, 100);
-  lights.children[0].lookAt(0, 0, 0);
-  lights.children[1].position.set(50, -200, 150);
-  lights.children[1].lookAt(0, 0, 0);
-  scene.add(lights);
-
-  // generate slices
-  for (var p = 0; p < options.numSlices; p++) {
-    addPizza(
-      rand(-100, 100),
-      rand(-100, 100),
-      rand(-100, 100)
-    );
-  }
-
-  // Attach renderer to DOM and add listeners
-  var container = document.getElementById('three');
-  renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-  });
-  renderer.setClearColor(0xf0f0f0, 0);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  container.appendChild(renderer.domElement);
-
-  document.addEventListener('mousedown', onDocumentMouseDown, false);
-  document.addEventListener('touchstart', onDocumentTouchStart, false);
-  document.addEventListener('touchmove', onDocumentTouchMove, false);
-  window.addEventListener('resize', onWindowResize, false)
-}
-
-/**/
-var triangleShapeTemplate = new THREE.Shape();
-triangleShapeTemplate.moveTo(-15, 0);
-triangleShapeTemplate.lineTo(15, 0);
-triangleShapeTemplate.lineTo(0, -30);
-triangleShapeTemplate.lineTo(-15, 0);
 
 /**/
 function addPizza(x, y, z) {
@@ -93,11 +38,11 @@ function addPizza(x, y, z) {
   var triangleShape = triangleShapeTemplate;
 
   var extrudeSettings = {
-    amount: 6,
+    amount: options.extrudeSize,
     steps: 1,
     bevelEnabled: true,
     bevelSegments: 2,
-    bevelSize: 2,
+    bevelSize: 1,
     bevelThickness: 1
   };
 
@@ -129,9 +74,10 @@ function addPizza(x, y, z) {
 
     // generate vertex UVs for texturing
     let faces = geometry.faceVertexUvs[0].length;
-    geometry.faceVertexUvs[0] = [];
     let by = 0.05;
     // base y (minY) for texture; HACK to cut off watermark ¯\_(ツ)_/¯
+
+    geometry.faceVertexUvs[0] = [];
 
     for (var i = 0; i < faces; i += 2) {
       geometry.faceVertexUvs[0][i] = [
@@ -157,7 +103,7 @@ function addPizza(x, y, z) {
       v: rand(-4, 4),
       phase: rand(0, Math.PI)
     });
-    scene.add(mesh);
+    pivot.add(mesh);
 
   }
 
@@ -166,7 +112,6 @@ function addPizza(x, y, z) {
 /**
  * Util
  **/
-
 /* rand clamp */
 function rand(min, max) {
   return Math.random() * (max - min) + min;
@@ -184,6 +129,82 @@ function orbit(t, T, r, phase) {
   return [x, y, z];
 }
 
+/**
+ * Three js
+ */
+/**/
+function init() {
+  // Set up scene and camera
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(
+    options.fov,
+    window.innerWidth / window.innerHeight,
+    1, 1000
+  );
+  camera.position.set(options.camera[0], options.camera[1], options.camera[2]);
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  scene.add(camera);
+
+  // lights
+  var lights = new THREE.Group();
+  lights.add(new THREE.PointLight(0xffffff, 0.6));
+  lights.add(new THREE.PointLight(0xffffff, 0.6));
+  lights.add(new THREE.AmbientLight(0x909090)); // soft white light
+
+  lights.children[0].position.set(100, 100, 100);
+  lights.children[0].lookAt(0, 0, 0);
+  lights.children[1].position.set(50, -200, 150);
+  lights.children[1].lookAt(0, 0, 0);
+  scene.add(lights);
+
+  // generate slices randomly on surface of bounding sphere
+  // TODO parametric orbital equations in randomly generated Great Cirlce
+  for (let p = 0, u, theta; p < options.numSlices; p++) {
+    u = rand(-1, 1);
+    theta = rand(0, 2 * Math.PI);
+    addPizza(
+      (Math.sqrt(1 - u ** 2) * Math.cos(theta)) * 100,
+      (Math.sqrt(1 - u ** 2) * Math.sin(theta)) * 100,
+      u * 100
+    );
+  }
+
+  scene.add(pivot);
+
+  // (TODO) replace with Bert's glorious, pudgy visage
+  // add Helios
+  var sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(5, 32, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xffff00
+    })
+  );
+  scene.add(sphere);
+
+  // Attach renderer to DOM and add listeners
+  var container = document.getElementById('three');
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+  renderer.setClearColor(0xf0f0f0, 0);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  container.appendChild(renderer.domElement);
+
+  document.addEventListener('mousedown', onDocumentMouseDown, false);
+  document.addEventListener('touchstart', onDocumentTouchStart, false);
+  document.addEventListener('touchmove', onDocumentTouchMove, false);
+  window.addEventListener('resize', onWindowResize, false)
+}
+
+/**/
+var triangleShapeTemplate = new THREE.Shape();
+triangleShapeTemplate.moveTo(-options.pSize, 0);
+triangleShapeTemplate.lineTo(options.pSize, 0);
+triangleShapeTemplate.lineTo(0, -options.pSize * 2);
+triangleShapeTemplate.lineTo(-options.pSize, 0);
+
 function animate() {
   requestAnimationFrame(animate);
   render();
@@ -195,32 +216,32 @@ function render() {
 
   slices.forEach(function (sliceObj) {
     let slice = sliceObj.slice;
-    // let lethargy = sliceObj.lethargy;
     let pos = orbit(t, 5, 0.5, sliceObj.phase);
-    slice.translateX(pos[0]);
-    slice.translateY(pos[1]);
-    slice.translateZ(pos[2]);
-    // slice.translateX(0.1*Math.sin(t) * sliceObj.v);
-    // slice.rotation.z += ( targetRotation - slice.rotation.z ) * 0.05 * lethargy;
-    // slice.rotation.y += options.ySpinVelocity * lethargy;
+    // slice.translateX(pos[0]);
+    // slice.translateY(pos[1]);
+    // slice.translateZ(pos[2]);
   });
 
-  pivot.rotation.z += (targetRotation - pivot.rotation.z) * 0.05;
+  // pivot.rotation.z += .01;
+  // pivot.rotation.y += .01;
+
   renderer.render(scene, camera);
 }
 
 /* Load textures and start yr engines */
-loader = new THREE.TextureLoader(),
-  loader.setCrossOrigin('anonymous');
+loader = new THREE.TextureLoader();
+loader.setCrossOrigin('anonymous');
+
 loader.load(textureUrl, function (texture) {
   pizzaTexture = texture;
-
   clock = new THREE.Clock();
   init();
   animate();
 });
 
-/* Listener functions */
+/**
+ * Listeners
+ */
 function onWindowResize(event) {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -269,5 +290,3 @@ function onDocumentTouchMove(event) {
     targetRotation = targetRotationOnMouseDown + (mouseX - mouseXOnMouseDown) * 0.05;
   }
 }
-
-console.log('Ello');
