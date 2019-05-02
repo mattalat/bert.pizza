@@ -15,11 +15,21 @@ body {
   margin: 0;
 
   background-color: rgb(19, 19, 19);
+  font-family: 'Rubik', sans-serif;
 }
 
 div.bert {
   height: 100%;
   width: 100%;
-  background-image: url("pictures/bert9.jpg");
+  background-image: url("pictures/bert10.jpg");
   background-size: cover;
+}
+
+div.pizza {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 2em;
+  font-size: 30px;
+  color: #ded670;
 }
